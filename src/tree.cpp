@@ -1,5 +1,6 @@
 #include <iostream>
 #include <string>
+#include <cstdint>
 
 using namespace std;
 
@@ -8,13 +9,13 @@ private:
     struct tree
     {
         int size;
-        uint64_t key;
+        uint64_t value;
         tree* left;
         tree* right;
         tree* parent;
-        string value;
+        string key;
         int height;
-        tree(uint64_t k, string v) : key(k), value(v), left(nullptr), right(nullptr), parent(nullptr), height(1), size(1) {}
+        tree(string k, uint64_t v) : size(1), value(v), left(nullptr), right(nullptr), parent(nullptr), key(k), height(1) {}
     };
  
     tree *root = nullptr; 
@@ -76,5 +77,82 @@ private:
         return node;
     }
     
+    tree* isert_in_tree(tree* node, const string& key, uint64_t value) {
+        if (!node) return new tree(key, value);
+        if (key < node->key) {
+            node->left = isert_in_tree(node->left, key, value);
+            node->left->parent = node;
+        } else if (key > node->key) {
+            node->right = isert_in_tree(node->right, key, value);
+            node->right->parent = node;
+        } else {
+            node->value = value; 
+            return node;
+        }
+        return balance(node);
+    }
 
+    tree* erase_in_tree(tree* node, const string& key) {
+        if (!node) return nullptr;
+        if (key < node->key) {
+            node->left = erase_in_tree(node->left, key);
+            if (node->left) node->left->parent = node;
+        } else if (key > node->key) {
+            node->right = erase_in_tree(node->right, key);
+            if (node->right) node->right->parent = node;
+        } else {
+            if (!node->left || !node->right) {
+                tree* child = node->left ? node->left : node->right;
+                delete node;
+                return child;
+            }
+            tree* s = node->right;
+            while (s->left) s = s->left;
+            node->key = s->key;
+            node->value = s->value;
+            node->right = erase_in_tree(node->right, s->key);
+            if (node->right) node->right->parent = node;
+        }
+        return balance(node);
+        
+    }
+
+    tree* find_min(tree* node) const {
+        while (node && node->left) node = node->left;
+        return node;
+    }
+
+    void Clear_tree(tree* node) {
+        if (!node) return;
+        Clear_tree(node->left);
+        Clear_tree(node->right);
+        delete node;
+    }
+
+public:
+    void insert(const string& key, uint64_t value) {
+        root = isert_in_tree(root, key, value);
+        if (root) root->parent = nullptr;
+    }
+    void erase(const string& key) {
+        root = erase_in_tree(root, key);
+        if (root) root->parent = nullptr;
+    }
+    void clear() {
+        Clear_tree(root);
+        root = nullptr;
+    }
+    bool find(const string& key, uint64_t& value) const {
+        tree* node = root;
+        while (node) {
+            if (key < node->key) node = node->left;
+            else if (key > node->key) node = node->right;
+            else {
+                value = node->value;
+                return true;
+            }
+        }
+        return false;
+    }
+    
 };
