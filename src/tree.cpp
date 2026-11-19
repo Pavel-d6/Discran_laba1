@@ -1,6 +1,7 @@
 #include <iostream>
 #include <string>
 #include <cstdint>
+#include <cctype>
 
 using namespace std;
 
@@ -77,30 +78,34 @@ private:
         return node;
     }
     
-    tree* isert_in_tree(tree* node, const string& key, uint64_t value) {
-        if (!node) return new tree(key, value);
+    tree* insert_in_tree(tree* node, const string& key, uint64_t value, bool& inserted) {
+        if (!node) {
+            inserted = true;
+            return new tree(key, value);
+        }
         if (key < node->key) {
-            node->left = isert_in_tree(node->left, key, value);
+            node->left = insert_in_tree(node->left, key, value, inserted);
             node->left->parent = node;
         } else if (key > node->key) {
-            node->right = isert_in_tree(node->right, key, value);
+            node->right = insert_in_tree(node->right, key, value, inserted);
             node->right->parent = node;
         } else {
-            node->value = value; 
+            inserted = false;
             return node;
         }
         return balance(node);
     }
 
-    tree* erase_in_tree(tree* node, const string& key) {
+    tree* erase_in_tree(tree* node, const string& key, bool& erased) {
         if (!node) return nullptr;
         if (key < node->key) {
-            node->left = erase_in_tree(node->left, key);
+            node->left = erase_in_tree(node->left, key, erased);
             if (node->left) node->left->parent = node;
         } else if (key > node->key) {
-            node->right = erase_in_tree(node->right, key);
+            node->right = erase_in_tree(node->right, key, erased);
             if (node->right) node->right->parent = node;
         } else {
+            erased = true;
             if (!node->left || !node->right) {
                 tree* child = node->left ? node->left : node->right;
                 delete node;
@@ -110,7 +115,8 @@ private:
             while (s->left) s = s->left;
             node->key = s->key;
             node->value = s->value;
-            node->right = erase_in_tree(node->right, s->key);
+            bool successorErased = false;
+            node->right = erase_in_tree(node->right, s->key, successorErased);
             if (node->right) node->right->parent = node;
         }
         return balance(node);
@@ -130,13 +136,24 @@ private:
     }
 
 public:
-    void insert(const string& key, uint64_t value) {
-        root = isert_in_tree(root, key, value);
-        if (root) root->parent = nullptr;
+    AVL() = default;
+    ~AVL() {
+        clear();
     }
-    void erase(const string& key) {
-        root = erase_in_tree(root, key);
+    AVL(const AVL&) = delete;
+    AVL& operator=(const AVL&) = delete;
+
+    bool insert(const string& key, uint64_t value) {
+        bool inserted = false;
+        root = insert_in_tree(root, key, value, inserted);
         if (root) root->parent = nullptr;
+        return inserted;
+    }
+    bool erase(const string& key) {
+        bool erased = false;
+        root = erase_in_tree(root, key, erased);
+        if (root) root->parent = nullptr;
+        return erased;
     }
     void clear() {
         Clear_tree(root);
@@ -156,3 +173,51 @@ public:
     }
     
 };
+
+static string toLower(string word) {
+    for (char& ch : word) {
+        ch = static_cast<char>(tolower(static_cast<unsigned char>(ch)));
+    }
+    return word;
+}
+
+int main() {
+    AVL dictionary;
+    string command;
+
+    while (cin >> command) {
+        if (command == "+") {
+            string word;
+            uint64_t value;
+            if (!(cin >> word >> value))
+                break;
+            word = toLower(word);
+            cout << (dictionary.insert(word, value) ? "OK" : "Exist") << '\n';
+        } else if (command == "-") {
+            string word;
+            if (!(cin >> word))
+                break;
+            word = toLower(word);
+            cout << (dictionary.erase(word) ? "OK" : "NoSuchWord") << '\n';
+        } else if (command == "?" || command == "find" || command == "search") {
+            string word;
+            if (!(cin >> word))
+                break;
+            word = toLower(word);
+            uint64_t value;
+            cout << (dictionary.find(word, value)
+                         ? "OK: " + to_string(value)
+                         : "NoSuchWord")
+                 << '\n';
+        } else {
+            uint64_t value;
+            string word = toLower(command);
+            if (dictionary.find(word, value))
+                cout << "OK: " << value << '\n';
+            else
+                cout << "NoSuchWord" << '\n';
+        }
+    }
+
+    return 0;
+}
